@@ -55,15 +55,50 @@ State is split in two:
 - `useBodyStore` — the body itself (customization, wardrobe, pose, sim toggles).
 - `useSceneStore` — the viewing experience (mode, layer visibility, selection, camera).
 
+## Adding a real body model
+
+Two different upgrades, sourced differently:
+
+**1. Realistic body shape/skin** (swap for the primitive mannequin).
+Get a rigged humanoid `.glb`:
+- [MakeHuman](http://www.makehumancommunity.org) — free, open source, and its
+  body sliders (height/weight/age/muscle) map almost 1:1 onto
+  `src/types/body.ts`. Export as glTF/GLB, or export FBX and convert with
+  Blender.
+- Mixamo-rigged models (bone names like `mixamorig:Head` are already in
+  `BONE_NAME_MAP`).
+- Any rigged humanoid glTF, as long as its bone names are exact-match
+  somewhere in `BONE_NAME_MAP` (add more candidates if not).
+
+**2. Real anatomical layers** (actual muscle/organ/skeleton meshes instead
+of colored placeholders). This is mostly licensed content — Zygote,
+BioDigital, Complete Anatomy. Some free "flayed" anatomy models exist on
+Sketchfab; check the license before using one in anything you ship.
+
+**Steps once you have a file:**
+1. Drop it at `public/models/body.glb` (or update the path).
+2. Open `src/three/modelConfig.ts`, set `useRealModel: true`.
+3. If the console warns about missing bones or layer meshes, add the
+   real names you see in your DCC tool / glTF inspector to `BONE_NAME_MAP`
+   or `LAYER_MESH_NAME_MATCH` in that same file. No other code changes.
+4. If the file is broken or missing, `ModelErrorBoundary` catches it and
+   falls back to the primitive mannequin automatically — check the
+   console for why.
+
+Nothing in `BodyModel.tsx`, `PoseControls.tsx`, `AnatomyLayerPanel.tsx`, etc.
+needs to change either way — they all talk to the same pose/layer data
+regardless of which geometry is rendering it.
+
 ## Swapping in real assets later
+
 
 Everything placeholder is labeled as such in code comments, specifically:
 
-- **Body mesh**: `src/three/BodyModel.tsx` builds a primitive-geometry
+- **Body mesh**: `src/three/PrimitiveMannequin.tsx` builds a primitive-geometry
   mannequin out of nested `<group>`s keyed by `JointId` (see
-  `src/types/pose.ts`). A real rigged GLB should expose bones with matching
-  names (or a remap table) so `PosePreset` data works unchanged.
-- **Anatomy layers**: `LayerMesh` in `BodyModel.tsx` currently draws a
+  `src/types/pose.ts`). `src/three/GLTFBodyModel.tsx` is the real-model
+  equivalent — see "Adding a real body model" above.
+- **Anatomy layers**: `LayerMesh` in `PrimitiveMannequin.tsx` currently draws a
   scaled-down colored primitive per layer. Swap this for real per-layer
   meshes/materials loaded from GLB, keyed by the same `AnatomyLayerId`.
 - **Region hitboxes**: `src/three/BodyRegionHitboxes.tsx` uses fixed
